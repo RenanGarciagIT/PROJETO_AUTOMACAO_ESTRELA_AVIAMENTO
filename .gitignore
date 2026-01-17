@@ -1,0 +1,18 @@
+estrala_aviamentos/
+│
+├── app_formulario/
+│   ├── README.md
+│   └── (app de cadastro de OS)
+│
+├── app_automacao/
+│   ├── README.md
+│   └── (pyautogui / automação)
+│
+├── banco_dados/
+│   └── (modelagem, scripts, docs)
+│
+├── docs/
+│   └── (regras, fluxos, prints)
+│
+├── README.md
+└── .gitignore
