@@ -1,362 +1,247 @@
-import sqlite3
 import tkinter as tk
 from tkinter import ttk, messagebox
+import sqlite3
 
-# =============================
-# CONTROLE GLOBAL
-# =============================
-os_em_edicao = None
+# ---------------- FUNÇÃO DE NAVEGAÇÃO ----------------
 
-# =============================
-# BANCO
-# =============================
-def conectar():
+def mudar_tela(frame):
+    frame.tkraise()
+
+# ---------------- CONEXÃO DB ----------------
+
+def conectar_db():
     return sqlite3.connect("ordem_servico.db")
 
-# =============================
-# APP
-# =============================
-root = tk.Tk()
-root.title("Sistema de Ordem de Serviço")
-root.state("zoomed")
+# ---------------- FUNÇÃO ADICIONAR SERVIÇO ----------------
 
-container = tk.Frame(root)
-container.pack(expand=True, fill="both")
+def adicionar_servico():
+    descricao = entry_descricao.get()
+    tecnico = entry_tecnico.get()
+    tempo = entry_tempo.get()
+    custo = entry_custo.get()
 
-def limpar_tela():
-    for w in container.winfo_children():
-        w.destroy()
+    if descricao == "" or tecnico == "":
+        return
 
-# =============================
-# TELA INICIAL
-# =============================
-def tela_inicial():
-    limpar_tela()
-
-    frame = tk.Frame(container)
-    frame.place(relx=0.5, rely=0.5, anchor="center")
-
-    tk.Label(
-        frame,
-        text="Sistema de Ordem de Serviço",
-        font=("Arial", 20, "bold")
-    ).pack(pady=20)
-
-    tk.Button(
-        frame,
-        text="Cadastrar OS",
-        width=35,
-        height=2,
-        command=lambda: tela_os()
-    ).pack(pady=10)
-
-    tk.Button(
-        frame,
-        text="Alterar OS",
-        width=35,
-        height=2,
-        command=tela_lista_os
-    ).pack(pady=10)
-
-    tk.Button(
-        frame,
-        text="Sair",
-        width=35,
-        height=2,
-        command=root.quit
-    ).pack(pady=10)
-
-# =============================
-# TELA CRIAR / EDITAR OS
-# =============================
-def tela_os(id_os=None):
-    global os_em_edicao
-    os_em_edicao = id_os
-
-    limpar_tela()
-
-    frame = tk.Frame(container)
-    frame.pack(expand=True)
-
-    tk.Label(
-        frame,
-        text="ORDEM DE SERVIÇO",
-        font=("Arial", 16, "bold")
-    ).pack(pady=10)
-
-    # =============================
-    # FORMULÁRIO OS
-    # =============================
-    form_os = tk.Frame(frame)
-    form_os.pack()
-
-    campos = ["Número OS", "Tipo OS", "Status", "Data Abertura", "Data Fechamento"]
-    entradas = {}
-
-    for i, campo in enumerate(campos):
-        tk.Label(form_os, text=campo).grid(row=0, column=i, padx=5)
-        entradas[campo] = tk.Entry(form_os, width=18)
-        entradas[campo].grid(row=1, column=i, padx=5)
-
-    # =============================
-    # SERVIÇOS
-    # =============================
-    tk.Label(
-        frame,
-        text="SERVIÇOS",
-        font=("Arial", 14, "bold")
-    ).pack(pady=10)
-
-    serv_frame = tk.Frame(frame)
-    serv_frame.pack()
-
-    headers = ["Descrição", "Técnico", "Horas", "Custo"]
-    for i, h in enumerate(headers):
-        tk.Label(serv_frame, text=h).grid(row=0, column=i, padx=5)
-
-    linhas_servicos = []
-
-    def adicionar_servico(valores=None):
-        row = len(linhas_servicos) + 1
-
-        e1 = tk.Entry(serv_frame, width=30)
-        e2 = tk.Entry(serv_frame, width=20)
-        e3 = tk.Entry(serv_frame, width=10)
-        e4 = tk.Entry(serv_frame, width=10)
-
-        if valores:
-            e1.insert(0, valores[0])
-            e2.insert(0, valores[1])
-            e3.insert(0, valores[2])
-            e4.insert(0, valores[3])
-
-        e1.grid(row=row, column=0, padx=5)
-        e2.grid(row=row, column=1, padx=5)
-        e3.grid(row=row, column=2, padx=5)
-        e4.grid(row=row, column=3, padx=5)
-
-        linhas_servicos.append((e1, e2, e3, e4))
-
-    adicionar_servico()
-
-    tk.Button(
-        frame,
-        text="Adicionar Serviço",
-        command=adicionar_servico
-    ).pack(pady=5)
-
-    # =============================
-    # CARREGAR DADOS (EDIÇÃO)
-    # =============================
-    if id_os:
-        conn = conectar()
-        cur = conn.cursor()
-
-        cur.execute("""
-            SELECT numero_os, tipo_os, status, data_abertura, data_fechamento
-            FROM ordem_servico WHERE id_os=?
-        """, (id_os,))
-        dados = cur.fetchone()
-
-        for campo, valor in zip(campos, dados):
-            entradas[campo].insert(0, valor)
-
-        cur.execute("""
-            SELECT descricao_servico, tecnico, tempo_horas, custo_servico
-            FROM servico_os WHERE id_os=?
-        """, (id_os,))
-
-        for serv in cur.fetchall():
-            adicionar_servico(serv)
-
-        conn.close()
-
-    # =============================
-    # SALVAR OS
-    # =============================
-    def salvar_os():
-        conn = conectar()
-        cur = conn.cursor()
-
-        valores_os = [entradas[c].get() for c in campos]
-
-        if os_em_edicao is None:
-            cur.execute("""
-                INSERT INTO ordem_servico
-                (numero_os, tipo_os, status, data_abertura, data_fechamento)
-                VALUES (?, ?, ?, ?, ?)
-            """, valores_os)
-            id_atual = cur.lastrowid
-        else:
-            cur.execute("""
-                UPDATE ordem_servico SET
-                numero_os=?, tipo_os=?, status=?, data_abertura=?, data_fechamento=?
-                WHERE id_os=?
-            """, valores_os + [os_em_edicao])
-
-            cur.execute(
-                "DELETE FROM servico_os WHERE id_os=?",
-                (os_em_edicao,)
-            )
-            id_atual = os_em_edicao
-
-        for s in linhas_servicos:
-            if s[0].get():
-                cur.execute("""
-                    INSERT INTO servico_os
-                    (id_os, descricao_servico, tecnico, tempo_horas, custo_servico)
-                    VALUES (?, ?, ?, ?, ?)
-                """, (
-                    id_atual,
-                    s[0].get(),
-                    s[1].get(),
-                    s[2].get(),
-                    s[3].get()
-                ))
-
-        conn.commit()
-        conn.close()
-
-        messagebox.showinfo("Sucesso", "OS salva com sucesso!")
-        tela_os()
-
-    # =============================
-    # EXCLUIR OS
-    # =============================
-    def excluir_os():
-        if os_em_edicao is None:
-            return
-
-        if not messagebox.askyesno(
-            "Confirmar Exclusão",
-            "Deseja realmente excluir esta OS?\nEssa ação não pode ser desfeita."
-        ):
-            return
-
-        conn = conectar()
-        cur = conn.cursor()
-
-        cur.execute(
-            "DELETE FROM servico_os WHERE id_os=?",
-            (os_em_edicao,)
-        )
-        cur.execute(
-            "DELETE FROM ordem_servico WHERE id_os=?",
-            (os_em_edicao,)
-        )
-
-        conn.commit()
-        conn.close()
-
-        messagebox.showinfo("Sucesso", "OS excluída com sucesso!")
-        tela_inicial()
-
-    # =============================
-    # BOTÕES
-    # =============================
-    btn_frame = tk.Frame(frame)
-    btn_frame.pack(pady=20)
-
-    tk.Button(
-        btn_frame,
-        text="Enviar OS",
-        bg="green",
-        fg="white",
-        width=35,
-        height=2,
-        command=salvar_os
-    ).pack(pady=5)
-
-    if os_em_edicao:
-        tk.Button(
-            btn_frame,
-            text="Excluir OS",
-            bg="red",
-            fg="white",
-            width=35,
-            height=2,
-            command=excluir_os
-        ).pack(pady=5)
-
-    tk.Button(
-        btn_frame,
-        text="Voltar",
-        width=35,
-        command=tela_inicial
-    ).pack(pady=5)
-
-# =============================
-# LISTA DE OS
-# =============================
-def tela_lista_os():
-    limpar_tela()
-
-    frame = tk.Frame(container)
-    frame.pack(expand=True, fill="both")
-
-    tabela = ttk.Treeview(
-        frame,
-        columns=("id", "numero", "status"),
-        show="headings"
+    tabela_servicos.insert(
+        "",
+        "end",
+        values=(descricao, tecnico, tempo, custo)
     )
 
-    tabela.heading("id", text="ID")
-    tabela.heading("numero", text="Número OS")
-    tabela.heading("status", text="Status")
+    entry_descricao.delete(0, tk.END)
+    entry_tecnico.delete(0, tk.END)
+    entry_tempo.delete(0, tk.END)
+    entry_custo.delete(0, tk.END)
 
-    tabela.pack(expand=True, fill="both", padx=20, pady=20)
+# ---------------- SALVAR OS + SERVIÇOS ----------------
 
-    conn = conectar()
-    cur = conn.cursor()
-    cur.execute("SELECT id_os, numero_os, status FROM ordem_servico")
-    dados = cur.fetchall()
+def salvar_os_e_servicos():
+    if not tabela_servicos.get_children():
+        messagebox.showwarning("Atenção", "Adicione pelo menos um serviço.")
+        return
+
+    conn = conectar_db()
+    cursor = conn.cursor()
+
+    # ---------- SALVAR OS ----------
+    cursor.execute("""
+        INSERT INTO ordem_servico (
+            numero_os,
+            tipo_os,
+            status,
+            data_abertura,
+            data_fechamento
+        ) VALUES (?, ?, ?, ?, ?)
+    """, (
+        entry_numero_os.get(),
+        entry_tipo_os.get(),
+        entry_status.get(),
+        entry_data_abertura.get(),
+        entry_data_fechamento.get()
+    ))
+
+    id_os = cursor.lastrowid
+
+    # ---------- SALVAR SERVIÇOS ----------
+    for item in tabela_servicos.get_children():
+        descricao, tecnico, tempo, custo = tabela_servicos.item(item)["values"]
+
+        cursor.execute("""
+            INSERT INTO servico_os (
+                id_os,
+                descricao_servico,
+                tecnico,
+                tempo_horas,
+                custo_servico
+            ) VALUES (?, ?, ?, ?, ?)
+        """, (
+            id_os,
+            descricao,
+            tecnico,
+            tempo,
+            custo
+        ))
+
+    conn.commit()
     conn.close()
 
-    if not dados:
-        messagebox.showinfo(
-            "Nenhuma OS",
-            "Não existem Ordens de Serviço cadastradas."
-        )
-    else:
-        for row in dados:
-            tabela.insert("", "end", values=row)
+    messagebox.showinfo("Sucesso", "Ordem de Serviço salva com sucesso!")
 
-    def editar_os():
-        item = tabela.selection()
-        if item:
-            id_os = tabela.item(item)["values"][0]
-            tela_os(id_os)
+    limpar_tela()
 
-    btn_editar = tk.Button(
-        frame,
-        text="Editar OS",
-        width=30,
-        height=2,
-        command=editar_os
-    )
-    btn_editar.pack(pady=5)
+# ---------------- LIMPAR TELA ----------------
 
-    if not dados:
-        btn_editar.config(state="disabled")
+def limpar_tela():
+    for entry in (
+        entry_numero_os,
+        entry_tipo_os,
+        entry_status,
+        entry_data_abertura,
+        entry_data_fechamento
+    ):
+        entry.delete(0, tk.END)
 
-    tk.Button(
-        frame,
-        text="Cadastrar Nova OS",
-        width=30,
-        height=2,
-        command=lambda: tela_os()
-    ).pack(pady=5)
+    for item in tabela_servicos.get_children():
+        tabela_servicos.delete(item)
 
-    tk.Button(
-        frame,
-        text="Voltar",
-        width=30,
-        height=2,
-        command=tela_inicial
-    ).pack(pady=5)
+# ---------------- JANELA PRINCIPAL ----------------
 
-# =============================
-# START
-# =============================
-tela_inicial()
-root.mainloop()
+janela = tk.Tk()
+janela.title("Registro de Ordem de Serviço")
+janela.state("zoomed")
+
+container = tk.Frame(janela)
+container.pack(fill="both", expand=True)
+
+# ---------------- TELAS ----------------
+
+tela_inicial = tk.Frame(container)
+tela_cadastro = tk.Frame(container)
+
+for tela in (tela_inicial, tela_cadastro):
+    tela.place(relwidth=1, relheight=1)
+
+# ---------------- TELA INICIAL ----------------
+
+tk.Label(
+    tela_inicial,
+    text="TELA INICIAL",
+    font=("Arial", 20)
+).pack(pady=40)
+
+tk.Button(
+    tela_inicial,
+    text="ADICIONAR OS",
+    width=25,
+    height=3,
+    command=lambda: mudar_tela(tela_cadastro)
+).pack(pady=10)
+
+# ---------------- TELA CADASTRO ----------------
+
+tk.Label(
+    tela_cadastro,
+    text="CADASTRO DA ORDEM DE SERVIÇO",
+    font=("Arial", 20)
+).pack(pady=20)
+
+# ----------- FORMULÁRIO OS -----------
+
+form_os = tk.LabelFrame(tela_cadastro, text="Dados da OS", padx=20, pady=20)
+form_os.pack(fill="x", padx=40)
+
+tk.Label(form_os, text="Número OS").grid(row=0, column=0, sticky="e", padx=10, pady=5)
+entry_numero_os = tk.Entry(form_os, width=25)
+entry_numero_os.grid(row=0, column=1)
+
+tk.Label(form_os, text="Tipo OS").grid(row=1, column=0, sticky="e", padx=10, pady=5)
+entry_tipo_os = tk.Entry(form_os, width=25)
+entry_tipo_os.grid(row=1, column=1)
+
+tk.Label(form_os, text="Status").grid(row=2, column=0, sticky="e", padx=10, pady=5)
+entry_status = tk.Entry(form_os, width=25)
+entry_status.grid(row=2, column=1)
+
+tk.Label(form_os, text="Data Abertura").grid(row=0, column=2, sticky="e", padx=10, pady=5)
+entry_data_abertura = tk.Entry(form_os, width=25)
+entry_data_abertura.grid(row=0, column=3)
+
+tk.Label(form_os, text="Data Fechamento").grid(row=1, column=2, sticky="e", padx=10, pady=5)
+entry_data_fechamento = tk.Entry(form_os, width=25)
+entry_data_fechamento.grid(row=1, column=3)
+
+# ----------- FORMULÁRIO SERVIÇOS -----------
+
+form_servico = tk.LabelFrame(tela_cadastro, text="Adicionar Serviço", padx=20, pady=10)
+form_servico.pack(fill="x", padx=40, pady=20)
+
+tk.Label(form_servico, text="Descrição").grid(row=0, column=0)
+entry_descricao = tk.Entry(form_servico, width=30)
+entry_descricao.grid(row=1, column=0, padx=5)
+
+tk.Label(form_servico, text="Técnico").grid(row=0, column=1)
+entry_tecnico = tk.Entry(form_servico, width=20)
+entry_tecnico.grid(row=1, column=1, padx=5)
+
+tk.Label(form_servico, text="Tempo (h)").grid(row=0, column=2)
+entry_tempo = tk.Entry(form_servico, width=10)
+entry_tempo.grid(row=1, column=2, padx=5)
+
+tk.Label(form_servico, text="Custo").grid(row=0, column=3)
+entry_custo = tk.Entry(form_servico, width=10)
+entry_custo.grid(row=1, column=3, padx=5)
+
+tk.Button(
+    form_servico,
+    text="Adicionar Serviço",
+    width=20,
+    command=adicionar_servico
+).grid(row=1, column=4, padx=10)
+
+# ----------- TABELA DE SERVIÇOS -----------
+
+frame_tabela = tk.Frame(tela_cadastro)
+frame_tabela.pack(fill="both", expand=True, padx=40)
+
+scroll = tk.Scrollbar(frame_tabela)
+scroll.pack(side="right", fill="y")
+
+tabela_servicos = ttk.Treeview(
+    frame_tabela,
+    columns=("descricao", "tecnico", "tempo", "custo"),
+    show="headings",
+    yscrollcommand=scroll.set
+)
+
+scroll.config(command=tabela_servicos.yview)
+
+tabela_servicos.heading("descricao", text="Descrição do Serviço")
+tabela_servicos.heading("tecnico", text="Técnico")
+tabela_servicos.heading("tempo", text="Tempo (h)")
+tabela_servicos.heading("custo", text="Custo")
+
+tabela_servicos.pack(fill="both", expand=True)
+
+# ----------- BOTÕES FINAIS -----------
+
+tk.Button(
+    tela_cadastro,
+    text="SALVAR OS",
+    width=20,
+    height=2,
+    command=salvar_os_e_servicos
+).pack(pady=10)
+
+tk.Button(
+    tela_cadastro,
+    text="VOLTAR",
+    width=20,
+    height=2,
+    command=lambda: mudar_tela(tela_inicial)
+).pack(pady=10)
+
+# ---------------- INICIAR ----------------
+
+mudar_tela(tela_inicial)
+janela.mainloop()
