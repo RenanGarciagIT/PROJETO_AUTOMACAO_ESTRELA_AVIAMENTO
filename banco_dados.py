@@ -33,6 +33,18 @@ CREATE TABLE IF NOT EXISTS servico_os (
 )
 """)
 
+
+cursor.execute("""
+CREATE TABLE reg_automacao (
+    id_os INTEGER,
+    numero_os TEXT,
+    tipo_os TEXT,
+    status TEXT,
+    data_abertura TEXT,
+    data_fechamento TEXT
+);
+""")
+
 # Salva e fecha
 conn.commit()
 conn.close()
