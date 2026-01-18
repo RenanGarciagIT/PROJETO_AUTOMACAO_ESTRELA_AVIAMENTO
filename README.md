@@ -36,7 +36,7 @@ Na primeira fase, o projeto terá como foco:
 Após a validação do protótipo, está prevista a evolução para:
 
 - Desenvolvimento de uma **automação em Python**
-- Leitura dos dados armazenados no banco de dados
+- Leitura dos dados armazenados no banco de dados (feito)
 - Uso de **PyAutoGUI** para:
   - Acessar o sistema TOTVS
   - Preencher automaticamente as Ordens de Serviço
